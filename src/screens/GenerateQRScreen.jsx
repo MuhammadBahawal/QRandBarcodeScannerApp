@@ -1,60 +1,516 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
+import React, { useMemo, useRef, useState } from 'react';
+import {
+  Alert,
+  InteractionManager,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import ActionButtons from '../components/ActionButtons';
+import CodePreviewCard from '../components/CodePreviewCard';
+import ScreenHeader from '../components/ScreenHeader';
+import { palette, shadows } from '../constants/appTheme';
+import { useAppData } from '../context/AppContext';
+import useCodeExportActions from '../hooks/useCodeExportActions';
+
+const QR_COLOR_OPTIONS = ['#111827', '#4F46E5', '#0F766E', '#B91C1C', '#334155'];
+const BG_COLOR_OPTIONS = ['#FFFFFF', '#EEF2FF', '#ECFEFF', '#FDF2F8', '#F8FAFC'];
+
+const TEMPLATE_VALUES = [
+  { label: 'Website', value: 'https://example.com' },
+  { label: 'Text', value: 'Hello from my QR Scanner app' },
+  { label: 'Email', value: 'mailto:hello@example.com' },
+];
 
 export default function GenerateQRScreen({ navigation }) {
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Generate QR</Text>
-        <View style={styles.placeholder} />
-      </View>
+  const [value, setValue] = useState('');
+  const [fgColor, setFgColor] = useState(QR_COLOR_OPTIONS[0]);
+  const [bgColor, setBgColor] = useState(BG_COLOR_OPTIONS[0]);
+  const [renderError, setRenderError] = useState('');
+  const [isPreviewReady, setIsPreviewReady] = useState(false);
+  const previewRef = useRef(null);
+  const { addHistoryItem, settings } = useAppData();
+  const { loadingAction, shareFromPreviewRef, saveFromPreviewRef } = useCodeExportActions();
 
-      <View style={styles.content}>
-        <Text style={styles.text}>Yahan Generate QR wali full screen banegi.</Text>
+  const trimmedValue = value.trim();
+  const canGenerate = trimmedValue.length > 0 && trimmedValue.length <= 1800;
+
+  const statusMessage = useMemo(() => {
+    if (!trimmedValue) {
+      return 'Enter text or URL to generate a QR code.';
+    }
+
+    if (trimmedValue.length > 1800) {
+      return 'QR value is too long. Keep it under 1800 characters.';
+    }
+
+    if (renderError) {
+      return renderError;
+    }
+
+    return 'Your QR code is ready.';
+  }, [renderError, trimmedValue]);
+
+  const persistGeneratedQr = () => {
+    if (!canGenerate) {
+      return null;
+    }
+
+    return addHistoryItem({
+      source: 'generated',
+      codeFamily: 'qr',
+      format: 'QR',
+      value: trimmedValue,
+    });
+  };
+
+  const handleCopy = async () => {
+    if (!trimmedValue) {
+      Alert.alert('No value', 'Please enter something before copying.');
+      return;
+    }
+
+    await Clipboard.setStringAsync(trimmedValue);
+    Alert.alert('Copied', 'QR value copied to clipboard.');
+  };
+
+  const handleSaveToHistory = () => {
+    Keyboard.dismiss();
+
+    if (!canGenerate) {
+      Alert.alert('Cannot save', 'Please enter a valid QR value first.');
+      return;
+    }
+
+    const historyItem = persistGeneratedQr();
+
+    if (!historyItem && !settings.saveHistory) {
+      Alert.alert(
+        'History disabled',
+        'Turn on "Save history" in Settings if you want to store generated codes.'
+      );
+      return;
+    }
+
+    Alert.alert('Saved', 'QR code value has been added to history.');
+  };
+
+  const handleShare = async () => {
+    Keyboard.dismiss();
+
+    if (!canGenerate) {
+      Alert.alert('Cannot share', 'Please enter a valid value before sharing.');
+      return;
+    }
+
+    persistGeneratedQr();
+    await shareFromPreviewRef(previewRef, 'Share QR code image');
+  };
+
+  const handleSaveImage = async () => {
+    Keyboard.dismiss();
+
+    if (!canGenerate) {
+      Alert.alert('Cannot save image', 'Please enter a valid value first.');
+      return;
+    }
+
+    persistGeneratedQr();
+    await saveFromPreviewRef(previewRef);
+  };
+
+  const handleClear = () => {
+    Keyboard.dismiss();
+    setValue('');
+    setRenderError('');
+  };
+
+  React.useEffect(() => {
+    let isMounted = true;
+    const task = InteractionManager.runAfterInteractions(() => {
+      requestAnimationFrame(() => {
+        if (isMounted) {
+          setIsPreviewReady(true);
+        }
+      });
+    });
+
+    return () => {
+      isMounted = false;
+      task.cancel?.();
+    };
+  }, []);
+
+  return (
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <View style={styles.container}>
+        <ScreenHeader title="Generate QR" onBack={() => navigation.goBack()} compactTop />
+
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            contentContainerStyle={styles.scrollContent}
+          >
+              <View style={styles.inputCard}>
+                <View style={styles.inputHeader}>
+                  <Text style={styles.sectionTitle}>Value</Text>
+                  <TouchableOpacity
+                    style={styles.dismissKeyboardChip}
+                    activeOpacity={0.85}
+                    onPress={Keyboard.dismiss}
+                  >
+                    <Feather name="chevron-down" size={14} color="#334155" />
+                    <Text style={styles.dismissKeyboardText}>Dismiss</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Enter URL, text, contact info, or anything"
+                  placeholderTextColor="#94A3B8"
+                  multiline
+                  value={value}
+                  onChangeText={(nextValue) => {
+                    setRenderError('');
+                    setValue(nextValue);
+                  }}
+                  textAlignVertical="top"
+                  maxLength={2200}
+                  returnKeyType="done"
+                  blurOnSubmit
+                  onSubmitEditing={() => {
+                    Keyboard.dismiss();
+                    persistGeneratedQr();
+                  }}
+                />
+
+                <View style={styles.charRow}>
+                  <Text style={styles.charInfo}>{trimmedValue.length}/1800 recommended</Text>
+                </View>
+
+                <View style={styles.templateRow}>
+                  {TEMPLATE_VALUES.map((template) => (
+                    <TouchableOpacity
+                      key={template.label}
+                      style={styles.templateChip}
+                      activeOpacity={0.88}
+                      onPress={() => setValue(template.value)}
+                    >
+                      <Text style={styles.templateChipText}>{template.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.previewCard}>
+                <Text style={styles.sectionTitle}>Preview</Text>
+                {isPreviewReady ? (
+                  <CodePreviewCard
+                    ref={previewRef}
+                    type="qr"
+                    value={trimmedValue}
+                    qrForegroundColor={fgColor}
+                    qrBackgroundColor={bgColor}
+                    showMeta={false}
+                    placeholderText="QR preview appears here"
+                    onError={() => setRenderError('Could not render QR for this value.')}
+                  />
+                ) : (
+                  <View style={styles.previewBootWrap}>
+                    <Text style={styles.previewBootText}>Preparing QR preview...</Text>
+                  </View>
+                )}
+
+                <Text
+                  style={[
+                    styles.statusText,
+                    (!canGenerate || renderError) && styles.statusErrorText,
+                  ]}
+                >
+                  {statusMessage}
+                </Text>
+
+                <ActionButtons
+                  loadingAction={loadingAction}
+                  disabled={!canGenerate}
+                  onShare={handleShare}
+                  onSaveImage={handleSaveImage}
+                />
+              </View>
+
+              <View style={styles.colorCard}>
+                <View style={styles.pickerGroup}>
+                  <Text style={styles.pickerLabel}>Foreground</Text>
+                  <View style={styles.colorRow}>
+                    {QR_COLOR_OPTIONS.map((color) => (
+                      <TouchableOpacity
+                        key={color}
+                        style={[
+                          styles.colorDot,
+                          { backgroundColor: color },
+                          fgColor === color && styles.activeColorDot,
+                        ]}
+                        onPress={() => setFgColor(color)}
+                        activeOpacity={0.85}
+                      />
+                    ))}
+                  </View>
+                </View>
+
+                <View style={styles.pickerGroup}>
+                  <Text style={styles.pickerLabel}>Background</Text>
+                  <View style={styles.colorRow}>
+                    {BG_COLOR_OPTIONS.map((color) => (
+                      <TouchableOpacity
+                        key={color}
+                        style={[
+                          styles.colorDot,
+                          { backgroundColor: color, borderColor: '#CBD5E1', borderWidth: 1 },
+                          bgColor === color && styles.activeColorDot,
+                        ]}
+                        onPress={() => setBgColor(color)}
+                        activeOpacity={0.85}
+                      />
+                    ))}
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.actionPanel}>
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={handleCopy}
+                  activeOpacity={0.88}
+                >
+                  <Feather name="copy" size={16} color={palette.primary} />
+                  <Text style={styles.secondaryButtonText}>Copy Value</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={handleClear}
+                  activeOpacity={0.88}
+                >
+                  <Feather name="trash-2" size={16} color={palette.primary} />
+                  <Text style={styles.secondaryButtonText}>Clear</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.primaryButton, !canGenerate && styles.primaryButtonDisabled]}
+                  onPress={handleSaveToHistory}
+                  activeOpacity={0.9}
+                  disabled={!canGenerate}
+                >
+                  <Text style={styles.primaryButtonText}>Save to History</Text>
+                </TouchableOpacity>
+              </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: palette.background,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    paddingTop: 56,
     paddingHorizontal: 20,
+    backgroundColor: palette.background,
   },
-  header: {
+  flex: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 34,
+  },
+  inputCard: {
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    ...shadows.card,
+  },
+  inputHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  dismissKeyboardChip: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#E8EEF8',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dismissKeyboardText: {
+    marginLeft: 4,
+    fontSize: 11,
+    color: '#334155',
+    fontWeight: '700',
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: palette.text,
+  },
+  textInput: {
+    minHeight: 120,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: palette.text,
+    lineHeight: 22,
+    backgroundColor: '#F8FAFC',
+  },
+  charRow: {
+    marginTop: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
   },
-  backBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#F3F4F6',
+  charInfo: {
+    fontSize: 12,
+    color: palette.textMuted,
+    fontWeight: '600',
+  },
+  templateRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  templateChip: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#EEF2FF',
+  },
+  templateChipText: {
+    fontSize: 12,
+    color: palette.primary,
+    fontWeight: '700',
+  },
+  previewCard: {
+    marginTop: 14,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    ...shadows.card,
+  },
+  previewBootWrap: {
+    minHeight: 210,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
   },
-  placeholder: {
-    width: 42,
+  previewBootText: {
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '600',
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#111827',
+  statusText: {
+    marginTop: 10,
+    fontSize: 13,
+    color: palette.success,
+    fontWeight: '600',
   },
-  content: {
-    flex: 1,
+  statusErrorText: {
+    color: palette.warning,
+  },
+  colorCard: {
+    marginTop: 14,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    ...shadows.card,
+  },
+  pickerGroup: {
+    marginBottom: 14,
+  },
+  pickerLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: palette.textMuted,
+    marginBottom: 8,
+  },
+  colorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  colorDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  activeColorDot: {
+    borderWidth: 3,
+    borderColor: palette.primary,
+  },
+  actionPanel: {
+    marginTop: 14,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    padding: 14,
+    ...shadows.card,
+  },
+  secondaryButton: {
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#D9E2F2',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 10,
+    backgroundColor: '#F8FAFC',
   },
-  text: {
-    fontSize: 16,
-    color: '#6B7280',
+  secondaryButtonText: {
+    marginLeft: 8,
+    color: palette.primary,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  primaryButton: {
+    height: 50,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.primary,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.55,
+  },
+  primaryButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

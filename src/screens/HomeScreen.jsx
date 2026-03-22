@@ -1,61 +1,54 @@
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
   ScrollView,
-  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+
+import { palette, shadows } from '../constants/appTheme';
+import { useAppData } from '../context/AppContext';
+import { formatHistoryDate, truncateText } from '../utils/appUtils';
 
 const actionCards = [
   {
-    id: '1',
+    key: 'QRScanner',
     title: 'Scan QR',
-    subtitle: 'Instant capture',
-    iconType: 'MaterialCommunityIcons',
-    iconName: 'qrcode-scan',
-    screen: 'QRScanner',
+    subtitle: 'Instant camera scan',
+    icon: (
+      <MaterialCommunityIcons name="qrcode-scan" size={30} color={palette.primary} />
+    ),
   },
   {
-    id: '2',
-    title: 'Scan\nBarcode',
-    subtitle: 'UPC & EAN',
-    iconType: 'MaterialCommunityIcons',
-    iconName: 'barcode-scan',
-    screen: 'BarcodeScanner',
+    key: 'BarcodeScanner',
+    title: 'Scan Barcode',
+    subtitle: 'UPC, EAN, CODE',
+    icon: (
+      <MaterialCommunityIcons name="barcode-scan" size={30} color={palette.primary} />
+    ),
   },
   {
-    id: '3',
+    key: 'GenerateQR',
     title: 'Generate QR',
-    subtitle: 'Custom styles',
-    iconType: 'Feather',
-    iconName: 'plus-square',
-    screen: 'GenerateQR',
+    subtitle: 'Custom content',
+    icon: <Feather name="plus-square" size={28} color={palette.primary} />,
   },
   {
-    id: '4',
-    title: 'Gen Barcode',
-    subtitle: 'Universal codes',
-    iconType: 'MaterialCommunityIcons',
-    iconName: 'barcode',
-    screen: 'GenerateBarcode',
+    key: 'GenerateBarcode',
+    title: 'Generate Barcode',
+    subtitle: 'Many formats',
+    icon: <MaterialCommunityIcons name="barcode" size={30} color={palette.primary} />,
   },
 ];
 
-const RenderCardIcon = ({ iconType, iconName }) => {
-  if (iconType === 'Feather') {
-    return <Feather name={iconName} size={34} color="#4F46F8" />;
-  }
-
-  return <MaterialCommunityIcons name={iconName} size={34} color="#4F46F8" />;
-};
-
 export default function HomeScreen({ navigation }) {
+  const { insights, isHydrated } = useAppData();
+
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <View style={styles.container}>
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -63,88 +56,103 @@ export default function HomeScreen({ navigation }) {
         >
           <View style={styles.headerRow}>
             <View style={styles.headerTextWrap}>
-              <Text style={styles.title}>Hello, ready to scan?</Text>
-              <Text style={styles.subtitle}>Welcome back to QR & Barcode Pro</Text>
+              <Text style={styles.title}>QR & Barcode Hub</Text>
+              <Text style={styles.subtitle}>Fast scans, clean history, better workflow</Text>
             </View>
 
             <TouchableOpacity
-              style={styles.iconButton}
-              activeOpacity={0.85}
+              style={styles.settingsButton}
+              activeOpacity={0.88}
               onPress={() => navigation.navigate('Settings')}
             >
-              <Ionicons name="settings-outline" size={22} color="#475569" />
+              <Ionicons name="settings-outline" size={21} color="#334155" />
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.insightCard} activeOpacity={0.9}>
+          <TouchableOpacity
+            style={styles.insightCard}
+            activeOpacity={0.9}
+            onPress={() => navigation.navigate('History')}
+          >
             <View style={styles.insightLeft}>
-              <View style={styles.magicIconWrap}>
-                <MaterialCommunityIcons
-                  name="magic-staff"
-                  size={22}
-                  color="#FFFFFF"
-                />
+              <View style={styles.insightIconWrap}>
+                <MaterialCommunityIcons name="chart-box-outline" size={22} color="#FFFFFF" />
               </View>
-
               <View style={styles.insightTextWrap}>
-                <Text style={styles.insightLabel}>QUICK INSIGHT</Text>
-                <Text style={styles.insightValue}>3 codes generated today</Text>
+                <Text style={styles.insightLabel}>TODAY</Text>
+                <Text style={styles.insightValue}>
+                  {isHydrated
+                    ? `${insights.scannedToday} scans, ${insights.generatedToday} generated`
+                    : 'Loading analytics...'}
+                </Text>
               </View>
             </View>
-
-            <Ionicons name="chevron-forward" size={24} color="#D7D4FF" />
+            <Ionicons name="chevron-forward" size={22} color="#D5D9FF" />
           </TouchableOpacity>
 
+          <View style={styles.statsRow}>
+            <View style={styles.statsCard}>
+              <Text style={styles.statsNumber}>{isHydrated ? insights.qrCount : '--'}</Text>
+              <Text style={styles.statsLabel}>Total QR</Text>
+            </View>
+            <View style={styles.statsCard}>
+              <Text style={styles.statsNumber}>{isHydrated ? insights.barcodeCount : '--'}</Text>
+              <Text style={styles.statsLabel}>Total Barcodes</Text>
+            </View>
+            <View style={styles.statsCard}>
+              <Text style={styles.statsNumber}>{isHydrated ? insights.totalItems : '--'}</Text>
+              <Text style={styles.statsLabel}>All Entries</Text>
+            </View>
+          </View>
+
           <View style={styles.grid}>
-            {actionCards.map((item) => (
+            {actionCards.map((card) => (
               <TouchableOpacity
-                key={item.id}
+                key={card.key}
                 style={styles.card}
                 activeOpacity={0.9}
-                onPress={() => navigation.navigate(item.screen)}
+                onPress={() => navigation.navigate(card.key)}
               >
-                <View style={styles.cardIconBox}>
-                  <RenderCardIcon
-                    iconType={item.iconType}
-                    iconName={item.iconName}
-                  />
-                </View>
-
-                <Text style={styles.cardTitle}>{item.title}</Text>
-                <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
+                <View style={styles.cardIcon}>{card.icon}</View>
+                <Text style={styles.cardTitle}>{card.title}</Text>
+                <Text style={styles.cardSubtitle}>{card.subtitle}</Text>
               </TouchableOpacity>
             ))}
           </View>
+
+          <View style={styles.recentCard}>
+            <View style={styles.recentTop}>
+              <Text style={styles.recentTitle}>Recent activity</Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('History')}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.recentLink}>View all</Text>
+              </TouchableOpacity>
+            </View>
+
+            {insights.latestItem ? (
+              <View style={styles.recentBody}>
+                <View style={styles.recentBadge}>
+                  <Text style={styles.recentBadgeText}>
+                    {insights.latestItem.codeFamily === 'qr' ? 'QR' : 'BARCODE'}
+                  </Text>
+                </View>
+                <Text style={styles.recentValue}>
+                  {truncateText(insights.latestItem.value, 80)}
+                </Text>
+                <Text style={styles.recentMeta}>
+                  {insights.latestItem.source.toUpperCase()} .{' '}
+                  {formatHistoryDate(insights.latestItem.createdAt)}
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.emptyText}>
+                No history yet. Start with Scan QR or Generate QR.
+              </Text>
+            )}
+          </View>
         </ScrollView>
-
-        <View style={styles.bottomTabBar}>
-          <TouchableOpacity
-            style={styles.tabItem}
-            activeOpacity={0.85}
-            onPress={() => navigation.navigate('Home')}
-          >
-            <Ionicons name="home" size={24} color="#4F46F8" />
-            <Text style={[styles.tabLabel, styles.tabLabelActive]}>HOME</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.tabItem}
-            activeOpacity={0.85}
-            onPress={() => navigation.navigate('ScanOptions')}
-          >
-            <MaterialCommunityIcons name="qrcode-scan" size={24} color="#94A3B8" />
-            <Text style={styles.tabLabel}>SCAN</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.tabItem}
-            activeOpacity={0.85}
-            onPress={() => navigation.navigate('History')}
-          >
-            <MaterialCommunityIcons name="history" size={24} color="#94A3B8" />
-            <Text style={styles.tabLabel}>HISTORY</Text>
-          </TouchableOpacity>
-        </View>
       </View>
     </SafeAreaView>
   );
@@ -153,75 +161,58 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F3F3F6',
+    backgroundColor: palette.background,
   },
   container: {
     flex: 1,
-    backgroundColor: '#F3F3F6',
+    backgroundColor: palette.background,
   },
   scrollContent: {
-    paddingHorizontal: 22,
-    paddingTop: Platform.OS === 'android' ? 10 : 6,
-    paddingBottom: 110,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 26,
   },
   headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 24,
+    justifyContent: 'space-between',
   },
   headerTextWrap: {
     flex: 1,
-    paddingRight: 14,
+    paddingRight: 10,
   },
   title: {
-    fontSize: 24,
-    lineHeight: 30,
+    fontSize: 28,
     fontWeight: '800',
-    color: '#0F172A',
-    letterSpacing: -0.5,
-    marginBottom: 4,
+    color: palette.text,
+    letterSpacing: -0.3,
   },
   subtitle: {
+    marginTop: 6,
     fontSize: 14,
-    lineHeight: 20,
-    color: '#64748B',
+    lineHeight: 21,
+    color: palette.textMuted,
     fontWeight: '500',
   },
-  iconButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#F8F8F8',
-    justifyContent: 'center',
+  settingsButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: 'center',
-    shadowColor: '#94A3B8',
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    elevation: 4,
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    ...shadows.card,
   },
   insightCard: {
-    minHeight: 108,
-    borderRadius: 54,
-    backgroundColor: '#4F46F8',
-    paddingHorizontal: 22,
-    paddingVertical: 18,
-    marginBottom: 24,
+    marginTop: 20,
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: '#4F46E5',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    shadowColor: '#4F46F8',
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
-    elevation: 7,
+    ...shadows.floating,
   },
   insightLeft: {
     flexDirection: 'row',
@@ -229,107 +220,150 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingRight: 10,
   },
+  insightIconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    marginRight: 12,
+  },
   insightTextWrap: {
     flex: 1,
   },
-  magicIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
   insightLabel: {
-    fontSize: 12,
+    fontSize: 11,
+    letterSpacing: 0.9,
+    color: '#C7CCFF',
     fontWeight: '700',
-    color: '#C9C6FF',
-    letterSpacing: 1.2,
-    marginBottom: 2,
   },
   insightValue: {
-    fontSize: 16,
-    lineHeight: 22,
-    fontWeight: '700',
+    marginTop: 2,
+    fontSize: 15,
+    lineHeight: 21,
     color: '#FFFFFF',
-    flexShrink: 1,
+    fontWeight: '700',
+  },
+  statsRow: {
+    marginTop: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statsCard: {
+    width: '31.6%',
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 12,
+    alignItems: 'center',
+    ...shadows.card,
+  },
+  statsNumber: {
+    fontSize: 19,
+    fontWeight: '800',
+    color: palette.text,
+  },
+  statsLabel: {
+    marginTop: 4,
+    fontSize: 11,
+    fontWeight: '600',
+    color: palette.textMuted,
   },
   grid: {
+    marginTop: 16,
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
   card: {
-    width: '47.5%',
+    width: '48%',
+    borderRadius: 20,
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    paddingTop: 28,
-    paddingBottom: 20,
-    paddingHorizontal: 16,
-    marginBottom: 18,
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    paddingTop: 20,
+    paddingBottom: 16,
     alignItems: 'center',
-    shadowColor: '#CBD5E1',
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.09,
-    shadowRadius: 14,
-    elevation: 5,
-    minHeight: 185,
+    ...shadows.card,
   },
-  cardIconBox: {
-    width: 92,
-    height: 92,
-    borderRadius: 24,
-    backgroundColor: '#ECEBFA',
-    justifyContent: 'center',
+  cardIcon: {
+    width: 68,
+    height: 68,
+    borderRadius: 18,
     alignItems: 'center',
-    marginBottom: 18,
+    justifyContent: 'center',
+    backgroundColor: '#EEF2FF',
+    marginBottom: 14,
   },
   cardTitle: {
-    fontSize: 18,
-    lineHeight: 26,
+    fontSize: 16,
     fontWeight: '800',
-    color: '#0F172A',
+    color: palette.text,
     textAlign: 'center',
-    marginBottom: 4,
   },
   cardSubtitle: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: '#64748B',
+    marginTop: 5,
+    fontSize: 12,
+    color: palette.textMuted,
     textAlign: 'center',
     fontWeight: '500',
   },
-  bottomTabBar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 84,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-around',
-    paddingTop: 10,
-    paddingHorizontal: 8,
-  },
-  tabItem: {
-    width: 70,
-    alignItems: 'center',
-  },
-  tabLabel: {
+  recentCard: {
     marginTop: 4,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-    color: '#94A3B8',
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    ...shadows.card,
   },
-  tabLabelActive: {
-    color: '#4F46F8',
+  recentTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  recentTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: palette.text,
+  },
+  recentLink: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: palette.primary,
+  },
+  recentBody: {
+    marginTop: 10,
+  },
+  recentBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  recentBadgeText: {
+    fontSize: 10,
+    color: '#4F46E5',
+    fontWeight: '800',
+    letterSpacing: 0.7,
+  },
+  recentValue: {
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 21,
+    color: palette.text,
+    fontWeight: '600',
+  },
+  recentMeta: {
+    marginTop: 6,
+    fontSize: 12,
+    color: palette.textMuted,
+    fontWeight: '500',
+  },
+  emptyText: {
+    marginTop: 12,
+    fontSize: 14,
+    lineHeight: 21,
+    color: palette.textMuted,
+    fontWeight: '500',
   },
 });

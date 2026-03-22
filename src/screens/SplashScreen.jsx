@@ -13,6 +13,9 @@ export default function SplashScreen({ navigation }) {
   const progressAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    let timeoutId;
+    let isMounted = true;
+
     Animated.sequence([
       Animated.timing(progressAnim, {
         toValue: 0.58,
@@ -33,21 +36,34 @@ export default function SplashScreen({ navigation }) {
       try {
         const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
 
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
+          if (!isMounted) {
+            return;
+          }
+
           if (hasSeenOnboarding === 'true') {
-            navigation.replace('Home');
+            navigation.replace('MainTabs');
           } else {
             navigation.replace('Onboarding');
           }
         }, 2500);
       } catch (error) {
-        setTimeout(() => {
-          navigation.replace('Onboarding');
+        timeoutId = setTimeout(() => {
+          if (isMounted) {
+            navigation.replace('Onboarding');
+          }
         }, 2500);
       }
     };
 
     handleNavigation();
+
+    return () => {
+      isMounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [navigation, progressAnim]);
 
   const progressWidth = progressAnim.interpolate({
@@ -80,7 +96,7 @@ export default function SplashScreen({ navigation }) {
         <Text style={styles.loadingText}>INITIALIZING...</Text>
       </View>
 
-      <Text style={styles.footerText}>V 2.1.0 • SECURE & FAST</Text>
+      <Text style={styles.footerText}>V 2.1.0 - SECURE & FAST</Text>
     </View>
   );
 }

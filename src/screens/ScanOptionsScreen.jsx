@@ -1,84 +1,173 @@
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { palette, shadows } from '../constants/appTheme';
+
+const scanCards = [
+  {
+    key: 'QRScanner',
+    title: 'QR Scanner',
+    subtitle: 'Scan links, text, contact cards and more',
+    icon: 'qrcode-scan',
+  },
+  {
+    key: 'BarcodeScanner',
+    title: 'Barcode Scanner',
+    subtitle: 'Scan product and inventory barcodes',
+    icon: 'barcode-scan',
+  },
+];
 
 export default function ScanOptionsScreen({ navigation }) {
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Scan Options</Text>
-        <View style={styles.placeholder} />
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <View style={styles.container}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          <View style={styles.headerRow}>
+            <View>
+              <Text style={styles.title}>Scan Center</Text>
+              <Text style={styles.subtitle}>Choose the scanner mode you need</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.settingsButton}
+              activeOpacity={0.88}
+              onPress={() => navigation.navigate('Settings')}
+            >
+              <Ionicons name="settings-outline" size={21} color="#334155" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.cardGroup}>
+            {scanCards.map((card) => (
+              <TouchableOpacity
+                key={card.key}
+                style={styles.scanCard}
+                onPress={() => navigation.navigate(card.key)}
+                activeOpacity={0.9}
+              >
+                <View style={styles.iconWrap}>
+                  <MaterialCommunityIcons name={card.icon} size={30} color={palette.primary} />
+                </View>
+                <View style={styles.cardTextWrap}>
+                  <Text style={styles.cardTitle}>{card.title}</Text>
+                  <Text style={styles.cardSubtitle}>{card.subtitle}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={22} color="#94A3B8" />
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={styles.tipCard}>
+            <Text style={styles.tipTitle}>Pro tip</Text>
+            <Text style={styles.tipText}>
+              Keep the code inside the frame and avoid glare for faster detection.
+            </Text>
+          </View>
+        </ScrollView>
       </View>
-
-      <Text style={styles.text}>Yahan baad me tumhara provided scan options UI aayega.</Text>
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => navigation.navigate('QRScanner')}
-      >
-        <Text style={styles.buttonText}>Open QR Scanner</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => navigation.navigate('BarcodeScanner')}
-      >
-        <Text style={styles.buttonText}>Open Barcode Scanner</Text>
-      </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: palette.background,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: palette.background,
     paddingHorizontal: 20,
-    paddingTop: 56,
+    paddingTop: 8,
   },
-  header: {
+  scrollContent: {
+    paddingBottom: 22,
+  },
+  headerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 30,
   },
-  backBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#F3F4F6',
+  title: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: palette.text,
+  },
+  subtitle: {
+    marginTop: 6,
+    fontSize: 14,
+    color: palette.textMuted,
+    fontWeight: '500',
+  },
+  settingsButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    ...shadows.card,
   },
-  placeholder: {
-    width: 42,
+  cardGroup: {
+    marginTop: 24,
+    gap: 12,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#111827',
+  scanCard: {
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    ...shadows.card,
   },
-  text: {
-    fontSize: 16,
-    color: '#6B7280',
-    lineHeight: 24,
-    marginBottom: 30,
-    textAlign: 'center',
-  },
-  button: {
-    height: 54,
-    backgroundColor: '#4F46F8',
+  iconWrap: {
+    width: 62,
+    height: 62,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
+    backgroundColor: '#EEF2FF',
+    marginRight: 12,
   },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
+  cardTextWrap: {
+    flex: 1,
+    paddingRight: 6,
+  },
+  cardTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: palette.text,
+  },
+  cardSubtitle: {
+    marginTop: 4,
+    fontSize: 13,
+    lineHeight: 20,
+    color: palette.textMuted,
+    fontWeight: '500',
+  },
+  tipCard: {
+    marginTop: 18,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    ...shadows.card,
+  },
+  tipTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: palette.text,
+  },
+  tipText: {
+    marginTop: 6,
+    fontSize: 14,
+    lineHeight: 21,
+    color: palette.textMuted,
+    fontWeight: '500',
   },
 });

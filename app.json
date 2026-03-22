@@ -22,8 +22,22 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       }
     },
+    "androidNavigationBar": {
+      "visible": "sticky-immersive"
+    },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow QRandBarcode to access your photos.",
+          "savePhotosPermission": "Allow QRandBarcode to save code images to your gallery.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ]
+    ]
   }
 }

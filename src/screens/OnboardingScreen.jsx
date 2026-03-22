@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons, Ionicons, Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
@@ -52,6 +53,8 @@ const onboardingData = [
 export default function OnboardingScreen({ navigation }) {
   const flatListRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const insets = useSafeAreaInsets();
+  const slideTopPadding = Math.max(insets.top + 12, 40);
 
   const handleNext = async () => {
     if (currentIndex < onboardingData.length - 1) {
@@ -61,13 +64,13 @@ export default function OnboardingScreen({ navigation }) {
       });
     } else {
       await AsyncStorage.setItem('hasSeenOnboarding', 'true');
-      navigation.replace('Home');
+      navigation.replace('MainTabs');
     }
   };
 
   const handleSkip = async () => {
     await AsyncStorage.setItem('hasSeenOnboarding', 'true');
-    navigation.replace('Home');
+    navigation.replace('MainTabs');
   };
 
   const handleBack = () => {
@@ -184,7 +187,7 @@ export default function OnboardingScreen({ navigation }) {
 
   const renderItem = ({ item, index }) => {
     return (
-      <View style={styles.slide}>
+      <View style={[styles.slide, { paddingTop: slideTopPadding }]}>
         {renderTopBar(item, index)}
 
         <View style={styles.middleContent}>
@@ -243,7 +246,6 @@ const styles = StyleSheet.create({
   slide: {
     width,
     flex: 1,
-    paddingTop: 56,
     paddingHorizontal: 24,
     paddingBottom: 34,
     justifyContent: 'space-between',
