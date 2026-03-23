@@ -46,28 +46,40 @@ function SettingsSection({ title, children }) {
   );
 }
 
-const PRIVACY_URL = 'https://skanora-legal.netlify.app/';
-const TERMS_URL = 'https://skanora-legal.netlify.app/terms';
-
-async function openExternalUrl(url) {
-  try {
-    const supported = await Linking.canOpenURL(url);
-    if (supported) {
-      await Linking.openURL(url);
-    } else {
-      Alert.alert('Cannot Open Link', 'Unable to open this page on your device.');
-    }
-  } catch (error) {
-    Alert.alert('Error', 'Something went wrong while opening the link.');
-  }
-}
-
 export default function SettingsScreen({ navigation }) {
   const handleRateApp = () => {
     Alert.alert(
       'Rate App',
       'Rate flow will be connected to App Store / Play Store listing.'
     );
+  };
+
+  const openPrivacyPolicy = async () => {
+    const url = 'https://skanora-legal.netlify.app/';
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Error', 'Unable to open the link.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Unable to open the link.');
+    }
+  };
+
+  const openTermsConditions = async () => {
+    const url = 'https://skanora-legal.netlify.app/terms';
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Error', 'Unable to open the link.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Unable to open the link.');
+    }
   };
 
   return (
@@ -90,13 +102,13 @@ export default function SettingsScreen({ navigation }) {
                 icon="shield-check-outline"
                 title="Privacy Policy"
                 subtitle="How user data and permissions are handled"
-                onPress={() => openExternalUrl(PRIVACY_URL)}
+                onPress={openPrivacyPolicy}
               />
               <SettingsRow
                 icon="file-document-outline"
                 title="Terms & Conditions"
                 subtitle="Usage terms and legal notes"
-                onPress={() => openExternalUrl(TERMS_URL)}
+                onPress={openTermsConditions}
               />
             </SettingsSection>
 
@@ -144,7 +156,7 @@ export default function SettingsScreen({ navigation }) {
             </SettingsSection>
 
             <View style={styles.footer}>
-              <Text style={styles.footerText}>{`Skanora - v${APP_VERSION}`}</Text>
+              <Text style={styles.footerText}>{`QRandBarcode - v${APP_VERSION}`}</Text>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>

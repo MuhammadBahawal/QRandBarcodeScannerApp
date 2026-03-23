@@ -74,7 +74,7 @@ export default function CodeScannerScreen({ navigation, mode }) {
 
     if (settings.hapticsOnScan) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
-        () => {}
+        () => { }
       );
     }
 
@@ -140,7 +140,7 @@ export default function CodeScannerScreen({ navigation, mode }) {
     return (
       <SafeAreaView style={styles.permissionContainer}>
         <TouchableOpacity
-          style={styles.backFloating}
+          style={[styles.backFloating, { top: Math.max(insets.top + 6, 16) }]}
           onPress={() => navigation.goBack()}
           activeOpacity={0.85}
         >
@@ -484,7 +484,6 @@ const styles = StyleSheet.create({
   },
   backFloating: {
     position: 'absolute',
-    top: 16,
     left: 16,
     width: 42,
     height: 42,
