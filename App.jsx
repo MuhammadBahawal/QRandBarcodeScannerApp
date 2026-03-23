@@ -94,17 +94,17 @@ export default function App() {
             <Stack.Screen
               name="GenerateQR"
               component={GenerateQRScreen}
-              options={{ animation: 'none' }}
+              options={{ animation: 'slide_from_right' }}
             />
             <Stack.Screen
               name="GenerateBarcode"
               component={GenerateBarcodeScreen}
-              options={{ animation: 'none' }}
+              options={{ animation: 'slide_from_right' }}
             />
             <Stack.Screen
               name="Settings"
               component={SettingsScreen}
-              options={{ animation: 'none' }}
+              options={{ animation: 'slide_from_right' }}
             />
             <Stack.Screen
               name="PrivacyPolicy"

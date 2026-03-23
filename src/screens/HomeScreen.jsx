@@ -63,7 +63,7 @@ export default function HomeScreen({ navigation }) {
             <TouchableOpacity
               style={styles.settingsButton}
               activeOpacity={0.88}
-              onPress={() => navigation.navigate('Settings')}
+              onPress={() => navigation.getParent().navigate('Settings')}
             >
               <Ionicons name="settings-outline" size={21} color="#334155" />
             </TouchableOpacity>
@@ -111,7 +111,7 @@ export default function HomeScreen({ navigation }) {
                 key={card.key}
                 style={styles.card}
                 activeOpacity={0.9}
-                onPress={() => navigation.navigate(card.key)}
+                onPress={() => navigation.getParent().navigate(card.key)}
               >
                 <View style={styles.cardIcon}>{card.icon}</View>
                 <Text style={styles.cardTitle}>{card.title}</Text>
