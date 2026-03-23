@@ -83,11 +83,11 @@ export default function SplashScreen({ navigation }) {
         </View>
 
         <Text style={styles.title}>
-          QR & Barcode{'\n'}
-          <Text style={styles.highlight}>Generator Scanner</Text>
+          Skanora{'\n'}
+          <Text style={styles.highlight}>QR & Barcode Scanner</Text>
         </Text>
 
-        <Text style={styles.subtitle}>PREMIUM UTILITY APP</Text>
+        <Text style={styles.subtitle}>SCAN · GENERATE · ORGANIZE</Text>
 
         <View style={styles.progressTrack}>
           <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
@@ -96,7 +96,7 @@ export default function SplashScreen({ navigation }) {
         <Text style={styles.loadingText}>INITIALIZING...</Text>
       </View>
 
-      <Text style={styles.footerText}>V 2.1.0 - SECURE & FAST</Text>
+      <Text style={styles.footerText}>V 1.0.0 · SCAN & GENERATE</Text>
     </View>
   );
 }

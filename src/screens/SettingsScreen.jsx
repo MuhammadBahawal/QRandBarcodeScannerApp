@@ -4,6 +4,7 @@ import React from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -45,6 +46,22 @@ function SettingsSection({ title, children }) {
   );
 }
 
+const PRIVACY_URL = 'https://skanora-legal.netlify.app/';
+const TERMS_URL = 'https://skanora-legal.netlify.app/terms';
+
+async function openExternalUrl(url) {
+  try {
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      await Linking.openURL(url);
+    } else {
+      Alert.alert('Cannot Open Link', 'Unable to open this page on your device.');
+    }
+  } catch (error) {
+    Alert.alert('Error', 'Something went wrong while opening the link.');
+  }
+}
+
 export default function SettingsScreen({ navigation }) {
   const handleRateApp = () => {
     Alert.alert(
@@ -73,13 +90,13 @@ export default function SettingsScreen({ navigation }) {
                 icon="shield-check-outline"
                 title="Privacy Policy"
                 subtitle="How user data and permissions are handled"
-                onPress={() => navigation.navigate('PrivacyPolicy')}
+                onPress={() => openExternalUrl(PRIVACY_URL)}
               />
               <SettingsRow
                 icon="file-document-outline"
                 title="Terms & Conditions"
                 subtitle="Usage terms and legal notes"
-                onPress={() => navigation.navigate('TermsConditions')}
+                onPress={() => openExternalUrl(TERMS_URL)}
               />
             </SettingsSection>
 
@@ -127,7 +144,7 @@ export default function SettingsScreen({ navigation }) {
             </SettingsSection>
 
             <View style={styles.footer}>
-              <Text style={styles.footerText}>{`QRandBarcode - v${APP_VERSION}`}</Text>
+              <Text style={styles.footerText}>{`Skanora - v${APP_VERSION}`}</Text>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>

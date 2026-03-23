@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "QRandBarCode",
-    "slug": "QRandBarCode",
+    "name": "Skanora",
+    "slug": "skanora",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -12,9 +12,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.skanora.app"
     },
     "android": {
+      "package": "com.skanora.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -33,8 +35,8 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "Allow QRandBarcode to access your photos.",
-          "savePhotosPermission": "Allow QRandBarcode to save code images to your gallery.",
+          "photosPermission": "Allow Skanora to access your photos.",
+          "savePhotosPermission": "Allow Skanora to save code images to your gallery.",
           "isAccessMediaLocationEnabled": false
         }
       ]
