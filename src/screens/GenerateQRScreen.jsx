@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   InteractionManager,
@@ -22,6 +22,8 @@ import ScreenHeader from '../components/ScreenHeader';
 import { palette, shadows } from '../constants/appTheme';
 import { useAppData } from '../context/AppContext';
 import useCodeExportActions from '../hooks/useCodeExportActions';
+import { analyzePlatformUrl, getPlatformLogoSpec } from '../utils/platformDetection';
+import { createLogoConfig, pickImageFromGallery, validateImageFile } from '../utils/qrLogoUtils';
 
 const QR_COLOR_OPTIONS = ['#111827', '#4F46E5', '#0F766E', '#B91C1C', '#334155'];
 const BG_COLOR_OPTIONS = ['#FFFFFF', '#EEF2FF', '#ECFEFF', '#FDF2F8', '#F8FAFC'];
@@ -30,6 +32,11 @@ const TEMPLATE_VALUES = [
   { label: 'Website', value: 'https://example.com' },
   { label: 'Text', value: 'Hello from my QR Scanner app' },
   { label: 'Email', value: 'mailto:hello@example.com' },
+  { label: 'Instagram', value: 'https://instagram.com/username' },
+  { label: 'Facebook', value: 'https://facebook.com/username' },
+  { label: 'Twitter', value: 'https://twitter.com/username' },
+  { label: 'TikTok', value: 'https://tiktok.com/@username' },
+  { label: 'LinkedIn', value: 'https://linkedin.com/in/username' },
 ];
 
 export default function GenerateQRScreen({ navigation }) {
@@ -38,12 +45,20 @@ export default function GenerateQRScreen({ navigation }) {
   const [bgColor, setBgColor] = useState(BG_COLOR_OPTIONS[0]);
   const [renderError, setRenderError] = useState('');
   const [isPreviewReady, setIsPreviewReady] = useState(false);
+  const [customLogo, setCustomLogo] = useState(null);
+  const [autoLogo, setAutoLogo] = useState(null);
+  const [autoDetectedPlatform, setAutoDetectedPlatform] = useState(null);
   const previewRef = useRef(null);
   const { addHistoryItem, settings } = useAppData();
   const { loadingAction, shareFromPreviewRef, saveFromPreviewRef } = useCodeExportActions();
 
   const trimmedValue = value.trim();
   const canGenerate = trimmedValue.length > 0 && trimmedValue.length <= 1800;
+
+  // Determine which logo to use: custom takes priority over platform auto-detection
+  const activeLogoConfig = useMemo(() => {
+    return customLogo || autoLogo;
+  }, [customLogo, autoLogo]);
 
   const statusMessage = useMemo(() => {
     if (!trimmedValue) {
@@ -61,6 +76,40 @@ export default function GenerateQRScreen({ navigation }) {
     return 'Your QR code is ready.';
   }, [renderError, trimmedValue]);
 
+  useEffect(() => {
+    if (!trimmedValue) {
+      setAutoLogo(null);
+      setAutoDetectedPlatform(null);
+      return;
+    }
+
+    const analysis = analyzePlatformUrl(trimmedValue);
+
+    if (analysis.detected && (!customLogo || !customLogo.uri)) {
+      const platformSpec = getPlatformLogoSpec(analysis.platformId);
+
+      if (platformSpec) {
+        setAutoLogo({
+          iconName: platformSpec.iconName,
+          iconColor: platformSpec.iconColor,
+          backgroundColor: platformSpec.backgroundColor,
+          width: 55,
+          height: 55,
+          platformId: platformSpec.platformId,
+          platformName: platformSpec.platformName,
+          type: 'platform',
+        });
+        setAutoDetectedPlatform(platformSpec.platformId);
+      }
+
+      return;
+    }
+
+    // If an unknown URL or no detection
+    setAutoLogo(null);
+    setAutoDetectedPlatform(null);
+  }, [trimmedValue, customLogo]);
+
   const persistGeneratedQr = () => {
     if (!canGenerate) {
       return null;
@@ -72,6 +121,53 @@ export default function GenerateQRScreen({ navigation }) {
       format: 'QR',
       value: trimmedValue,
     });
+  };
+
+  const handleAddLogo = async () => {
+    try {
+      const pickedImage = await pickImageFromGallery();
+
+      // Handle errors from pickImageFromGallery
+      if (pickedImage?.error) {
+        if (pickedImage.error === 'permission_denied') {
+          Alert.alert(
+            'Permission Required',
+            'Please allow access to your photo library to add a logo to your QR code.'
+          );
+        } else if (pickedImage.error === 'picker_canceled') {
+          // User cancelled, no need to show alert
+          return;
+        } else if (pickedImage.error === 'invalid_asset') {
+          Alert.alert('Invalid Image', 'The selected image could not be read.');
+        }
+        return;
+      }
+
+      if (!pickedImage?.uri) {
+        return;
+      }
+
+      const isValid = await validateImageFile(pickedImage.uri);
+
+      if (!isValid) {
+        Alert.alert('Invalid image', 'Please select a valid image file.');
+        return;
+      }
+
+      const newLogoConfig = createLogoConfig(pickedImage.uri, 220, {
+        width: pickedImage.width,
+        height: pickedImage.height,
+      });
+
+      newLogoConfig.type = 'custom';
+
+      setCustomLogo(newLogoConfig);
+      setAutoLogo(null);
+      setAutoDetectedPlatform(null);
+    } catch (error) {
+      console.error('Failed to add logo:', error);
+      Alert.alert('Error', 'Unable to add logo. Please try again.');
+    }
   };
 
   const handleCopy = async () => {
@@ -133,6 +229,9 @@ export default function GenerateQRScreen({ navigation }) {
     Keyboard.dismiss();
     setValue('');
     setRenderError('');
+    setCustomLogo(null);
+    setAutoLogo(null);
+    setAutoDetectedPlatform(null);
   };
 
   React.useEffect(() => {
@@ -229,6 +328,7 @@ export default function GenerateQRScreen({ navigation }) {
                     showMeta={false}
                     placeholderText="QR preview appears here"
                     onError={() => setRenderError('Could not render QR for this value.')}
+                    logoConfig={activeLogoConfig}
                   />
                 ) : (
                   <View style={styles.previewBootWrap}>
@@ -244,6 +344,16 @@ export default function GenerateQRScreen({ navigation }) {
                 >
                   {statusMessage}
                 </Text>
+
+                <TouchableOpacity
+                  style={styles.smallButton}
+                  onPress={handleAddLogo}
+                  activeOpacity={0.88}
+                  disabled={!canGenerate}
+                >
+                  <Feather name="plus-circle" size={16} color="#FFFFFF" />
+                  <Text style={styles.smallButtonText}>Add Logo</Text>
+                </TouchableOpacity>
 
                 <ActionButtons
                   loadingAction={loadingAction}
@@ -439,6 +549,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: palette.success,
     fontWeight: '600',
+  },
+  smallButton: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    gap: 6,
+  },
+  smallButtonText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   statusErrorText: {
     color: palette.warning,

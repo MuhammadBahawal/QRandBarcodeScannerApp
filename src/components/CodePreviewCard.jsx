@@ -1,4 +1,4 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import Barcode from '@kichiyaki/react-native-barcode-generator';
 import React, {
   forwardRef,
@@ -8,7 +8,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, Image } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import ViewShot from 'react-native-view-shot';
 
@@ -30,6 +30,7 @@ const CodePreviewCard = forwardRef(function CodePreviewCard(
     style,
     previewStyle,
     onError,
+    logoConfig = null,
   },
   ref
 ) {
@@ -77,16 +78,63 @@ const CodePreviewCard = forwardRef(function CodePreviewCard(
         >
           {safeValue && !renderError ? (
             codeType === 'qr' ? (
-              <QRCode
-                value={safeValue}
-                size={qrSize}
-                color={qrForegroundColor}
-                backgroundColor={qrBackgroundColor}
-                onError={(error) => {
-                  setRenderError(error?.message || 'Could not render this QR code.');
-                  onError?.(error);
-                }}
-              />
+              <View style={styles.qrCodeContainer}>
+                <QRCode
+                  value={safeValue}
+                  size={qrSize}
+                  color={qrForegroundColor}
+                  backgroundColor={qrBackgroundColor}
+                  onError={(error) => {
+                    setRenderError(error?.message || 'Could not render this QR code.');
+                    onError?.(error);
+                  }}
+                />
+                {logoConfig && (
+                  <View
+                    style={[
+                      styles.logoOverlayContainer,
+                      {
+                        width: qrSize,
+                        height: qrSize,
+                        position: 'absolute',
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.logoBackground,
+                        {
+                          width: (logoConfig.width || 52) + 6,
+                          height: (logoConfig.height || 52) + 6,
+                          borderRadius: logoConfig.type === 'platform' ? ((logoConfig.width || 52) + 6) / 2 : 0,
+                          backgroundColor: logoConfig.type === 'platform' ? (logoConfig.backgroundColor || qrBackgroundColor) : 'transparent',
+                        },
+                      ]}
+                    />
+
+                    {logoConfig.uri ? (
+                      <Image
+                        source={{ uri: logoConfig.uri }}
+                        style={[
+                          styles.logoImage,
+                          {
+                            width: logoConfig.width || 52,
+                            height: logoConfig.height || 52,
+                            borderRadius: (logoConfig.width || 52) / 2,
+                          },
+                        ]}
+                        resizeMode="cover"
+                      />
+                    ) : logoConfig.iconName ? (
+                      <FontAwesome5
+                        name={logoConfig.iconName}
+                        size={logoConfig.width || 40}
+                        color={logoConfig.iconColor || '#FFFFFF'}
+                      />
+                    ) : null}
+                  </View>
+                )}
+              </View>
             ) : (
               <Barcode
                 value={safeValue}
@@ -186,6 +234,31 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: palette.textMuted,
     fontWeight: '500',
+  },
+  qrCodeContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  logoOverlayContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'absolute',
+  },
+  logoBackground: {
+    position: 'absolute',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  logoImage: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 6,
   },
 });
 

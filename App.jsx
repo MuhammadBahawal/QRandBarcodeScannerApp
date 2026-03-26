@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Platform } from 'react-native';
+import { NavigationBar } from 'expo-navigation-bar';
+import { StatusBar } from 'expo-status-bar';
 
 import { AppProvider } from './src/context/AppContext';
 import SplashScreen from './src/screens/SplashScreen';
@@ -26,6 +29,8 @@ const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 function MainTabsNavigator() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       initialRouteName="Home"
@@ -39,6 +44,8 @@ function MainTabsNavigator() {
         tabBarStyle: {
           borderTopColor: '#E2E8F0',
           backgroundColor: '#FFFFFF',
+          paddingBottom: Platform.OS === 'ios' ? insets.bottom : 0,
+          height: 60 + (Platform.OS === 'ios' ? insets.bottom : 0),
         },
         tabBarLabelStyle: {
           fontSize: 11,
@@ -81,10 +88,18 @@ function MainTabsNavigator() {
 }
 
 export default function App() {
+  useEffect(() => {
+    if (Platform.OS === 'android' && NavigationBar && NavigationBar.setVisibilityAsync) {
+      NavigationBar.setVisibilityAsync('hidden');
+      NavigationBar.setBehaviorAsync('inset-swipe-immersive');
+    }
+  }, []);
+
   return (
     <SafeAreaProvider>
       <AppProvider>
         <NavigationContainer>
+          <StatusBar style="dark" translucent backgroundColor="transparent" />
           <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
             <Stack.Screen name="Splash" component={SplashScreen} />
             <Stack.Screen name="Onboarding" component={OnboardingScreen} />
