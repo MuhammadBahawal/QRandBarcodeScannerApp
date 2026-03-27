@@ -1,8 +1,9 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,6 +18,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { palette, shadows } from '../constants/appTheme';
 import { useAppData } from '../context/AppContext';
 import { normalizeUrl, truncateText } from '../utils/appUtils';
+import { parseProfileQrValue } from '../utils/profileQrUtils';
 
 const modeConfig = {
   qr: {
@@ -59,6 +61,14 @@ export default function CodeScannerScreen({ navigation, mode }) {
     [config.barcodeTypes]
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      setIsScanLocked(false);
+      setScanResult(null);
+      return undefined;
+    }, [])
+  );
+
   const handleScanned = async ({ data, type }) => {
     if (isScanLocked) {
       return;
@@ -78,12 +88,16 @@ export default function CodeScannerScreen({ navigation, mode }) {
       );
     }
 
+    const profileData =
+      config.codeFamily === 'qr' ? parseProfileQrValue(value) : null;
     const normalizedUrl = normalizeUrl(value);
     const parsedResult = {
       value,
       type: String(type || 'unknown').toUpperCase(),
       isUrl: Boolean(normalizedUrl),
       normalizedUrl,
+      isProfile: Boolean(profileData),
+      profileData,
     };
 
     addHistoryItem({
@@ -92,6 +106,13 @@ export default function CodeScannerScreen({ navigation, mode }) {
       format: parsedResult.type,
       value,
     });
+
+    if (profileData) {
+      navigation.navigate('ProfileDetail', {
+        profile: profileData,
+      });
+      return;
+    }
 
     setScanResult(parsedResult);
 

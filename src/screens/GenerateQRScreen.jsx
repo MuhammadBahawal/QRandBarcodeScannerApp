@@ -23,6 +23,7 @@ import { palette, shadows } from '../constants/appTheme';
 import { useAppData } from '../context/AppContext';
 import useCodeExportActions from '../hooks/useCodeExportActions';
 import { analyzePlatformUrl, getPlatformLogoSpec } from '../utils/platformDetection';
+import { buildProfileQrValue } from '../utils/profileQrUtils';
 import { createLogoConfig, pickImageFromGallery, validateImageFile } from '../utils/qrLogoUtils';
 
 const QR_COLOR_OPTIONS = ['#111827', '#4F46E5', '#0F766E', '#B91C1C', '#334155'];
@@ -39,8 +40,20 @@ const TEMPLATE_VALUES = [
   { label: 'LinkedIn', value: 'https://linkedin.com/in/username' },
 ];
 
+const PROFILE_EMPTY_STATE = {
+  name: '',
+  phone: '',
+  email: '',
+  address: '',
+  bio: '',
+  website: '',
+  socialLinks: '',
+};
+
 export default function GenerateQRScreen({ navigation }) {
+  const [mode, setMode] = useState('value');
   const [value, setValue] = useState('');
+  const [profileFields, setProfileFields] = useState(PROFILE_EMPTY_STATE);
   const [fgColor, setFgColor] = useState(QR_COLOR_OPTIONS[0]);
   const [bgColor, setBgColor] = useState(BG_COLOR_OPTIONS[0]);
   const [renderError, setRenderError] = useState('');
@@ -52,8 +65,14 @@ export default function GenerateQRScreen({ navigation }) {
   const { addHistoryItem, settings } = useAppData();
   const { loadingAction, shareFromPreviewRef, saveFromPreviewRef } = useCodeExportActions();
 
+  const isProfileMode = mode === 'profile';
   const trimmedValue = value.trim();
-  const canGenerate = trimmedValue.length > 0 && trimmedValue.length <= 1800;
+  const profileQrValue = useMemo(
+    () => buildProfileQrValue(profileFields),
+    [profileFields]
+  );
+  const activeQrValue = isProfileMode ? profileQrValue : trimmedValue;
+  const canGenerate = activeQrValue.length > 0 && activeQrValue.length <= 1800;
 
   // Determine which logo to use: custom takes priority over platform auto-detection
   const activeLogoConfig = useMemo(() => {
@@ -61,11 +80,13 @@ export default function GenerateQRScreen({ navigation }) {
   }, [customLogo, autoLogo]);
 
   const statusMessage = useMemo(() => {
-    if (!trimmedValue) {
-      return 'Enter text or URL to generate a QR code.';
+    if (!activeQrValue) {
+      return isProfileMode
+        ? 'Fill at least one profile field to generate a Profile QR.'
+        : 'Enter text or URL to generate a QR code.';
     }
 
-    if (trimmedValue.length > 1800) {
+    if (activeQrValue.length > 1800) {
       return 'QR value is too long. Keep it under 1800 characters.';
     }
 
@@ -74,10 +95,10 @@ export default function GenerateQRScreen({ navigation }) {
     }
 
     return 'Your QR code is ready.';
-  }, [renderError, trimmedValue]);
+  }, [activeQrValue, isProfileMode, renderError]);
 
   useEffect(() => {
-    if (!trimmedValue) {
+    if (isProfileMode || !trimmedValue) {
       setAutoLogo(null);
       setAutoDetectedPlatform(null);
       return;
@@ -108,7 +129,7 @@ export default function GenerateQRScreen({ navigation }) {
     // If an unknown URL or no detection
     setAutoLogo(null);
     setAutoDetectedPlatform(null);
-  }, [trimmedValue, customLogo]);
+  }, [isProfileMode, trimmedValue, customLogo]);
 
   const persistGeneratedQr = () => {
     if (!canGenerate) {
@@ -119,8 +140,16 @@ export default function GenerateQRScreen({ navigation }) {
       source: 'generated',
       codeFamily: 'qr',
       format: 'QR',
-      value: trimmedValue,
+      value: activeQrValue,
     });
+  };
+
+  const handleProfileFieldChange = (field, nextValue) => {
+    setRenderError('');
+    setProfileFields((previous) => ({
+      ...previous,
+      [field]: nextValue,
+    }));
   };
 
   const handleAddLogo = async () => {
@@ -171,12 +200,12 @@ export default function GenerateQRScreen({ navigation }) {
   };
 
   const handleCopy = async () => {
-    if (!trimmedValue) {
+    if (!activeQrValue) {
       Alert.alert('No value', 'Please enter something before copying.');
       return;
     }
 
-    await Clipboard.setStringAsync(trimmedValue);
+    await Clipboard.setStringAsync(activeQrValue);
     Alert.alert('Copied', 'QR value copied to clipboard.');
   };
 
@@ -228,6 +257,7 @@ export default function GenerateQRScreen({ navigation }) {
   const handleClear = () => {
     Keyboard.dismiss();
     setValue('');
+    setProfileFields(PROFILE_EMPTY_STATE);
     setRenderError('');
     setCustomLogo(null);
     setAutoLogo(null);
@@ -267,7 +297,7 @@ export default function GenerateQRScreen({ navigation }) {
           >
               <View style={styles.inputCard}>
                 <View style={styles.inputHeader}>
-                  <Text style={styles.sectionTitle}>Value</Text>
+                  <Text style={styles.sectionTitle}>{isProfileMode ? 'Profile' : 'Value'}</Text>
                   <TouchableOpacity
                     style={styles.dismissKeyboardChip}
                     activeOpacity={0.85}
@@ -278,41 +308,130 @@ export default function GenerateQRScreen({ navigation }) {
                   </TouchableOpacity>
                 </View>
 
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Enter URL, text, contact info, or anything"
-                  placeholderTextColor="#94A3B8"
-                  multiline
-                  value={value}
-                  onChangeText={(nextValue) => {
-                    setRenderError('');
-                    setValue(nextValue);
-                  }}
-                  textAlignVertical="top"
-                  maxLength={2200}
-                  returnKeyType="done"
-                  blurOnSubmit
-                  onSubmitEditing={() => {
-                    Keyboard.dismiss();
-                    persistGeneratedQr();
-                  }}
-                />
-
-                <View style={styles.charRow}>
-                  <Text style={styles.charInfo}>{trimmedValue.length}/1800 recommended</Text>
+                <View style={styles.modeRow}>
+                  <TouchableOpacity
+                    style={[styles.modeChip, !isProfileMode && styles.modeChipActive]}
+                    onPress={() => setMode('value')}
+                    activeOpacity={0.88}
+                  >
+                    <Text style={[styles.modeChipText, !isProfileMode && styles.modeChipTextActive]}>
+                      Text / URL
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modeChip, isProfileMode && styles.modeChipActive]}
+                    onPress={() => setMode('profile')}
+                    activeOpacity={0.88}
+                  >
+                    <Text style={[styles.modeChipText, isProfileMode && styles.modeChipTextActive]}>
+                      Profile
+                    </Text>
+                  </TouchableOpacity>
                 </View>
 
-                <View style={styles.templateRow}>
-                  {TEMPLATE_VALUES.map((template) => (
-                    <TouchableOpacity
-                      key={template.label}
-                      style={styles.templateChip}
-                      activeOpacity={0.88}
-                      onPress={() => setValue(template.value)}
-                    >
-                      <Text style={styles.templateChipText}>{template.label}</Text>
-                    </TouchableOpacity>
-                  ))}
+                {isProfileMode ? (
+                  <View>
+                    <TextInput
+                      style={styles.profileInput}
+                      placeholder="Full name"
+                      placeholderTextColor="#94A3B8"
+                      value={profileFields.name}
+                      onChangeText={(nextValue) => handleProfileFieldChange('name', nextValue)}
+                    />
+                    <TextInput
+                      style={styles.profileInput}
+                      placeholder="Phone number"
+                      placeholderTextColor="#94A3B8"
+                      value={profileFields.phone}
+                      onChangeText={(nextValue) => handleProfileFieldChange('phone', nextValue)}
+                      keyboardType="phone-pad"
+                    />
+                    <TextInput
+                      style={styles.profileInput}
+                      placeholder="Email"
+                      placeholderTextColor="#94A3B8"
+                      value={profileFields.email}
+                      onChangeText={(nextValue) => handleProfileFieldChange('email', nextValue)}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                    />
+                    <TextInput
+                      style={styles.profileInput}
+                      placeholder="Address"
+                      placeholderTextColor="#94A3B8"
+                      value={profileFields.address}
+                      onChangeText={(nextValue) => handleProfileFieldChange('address', nextValue)}
+                    />
+                    <TextInput
+                      style={styles.profileInput}
+                      placeholder="Website"
+                      placeholderTextColor="#94A3B8"
+                      value={profileFields.website}
+                      onChangeText={(nextValue) => handleProfileFieldChange('website', nextValue)}
+                      autoCapitalize="none"
+                    />
+                    <TextInput
+                      style={[styles.profileInput, styles.profileBioInput]}
+                      placeholder="Bio"
+                      placeholderTextColor="#94A3B8"
+                      multiline
+                      textAlignVertical="top"
+                      value={profileFields.bio}
+                      onChangeText={(nextValue) => handleProfileFieldChange('bio', nextValue)}
+                    />
+                    <TextInput
+                      style={[styles.profileInput, styles.profileSocialInput]}
+                      placeholder="Social links (one per line)"
+                      placeholderTextColor="#94A3B8"
+                      multiline
+                      textAlignVertical="top"
+                      autoCapitalize="none"
+                      value={profileFields.socialLinks}
+                      onChangeText={(nextValue) => handleProfileFieldChange('socialLinks', nextValue)}
+                    />
+                    <Text style={styles.profileHint}>
+                      Add links like Instagram, LinkedIn, or X. One link per line.
+                    </Text>
+                  </View>
+                ) : (
+                  <>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Enter URL, text, contact info, or anything"
+                      placeholderTextColor="#94A3B8"
+                      multiline
+                      value={value}
+                      onChangeText={(nextValue) => {
+                        setRenderError('');
+                        setValue(nextValue);
+                      }}
+                      textAlignVertical="top"
+                      maxLength={2200}
+                      returnKeyType="done"
+                      blurOnSubmit
+                      onSubmitEditing={() => {
+                        Keyboard.dismiss();
+                        persistGeneratedQr();
+                      }}
+                    />
+
+                    <View style={styles.templateRow}>
+                      {TEMPLATE_VALUES.map((template) => (
+                        <TouchableOpacity
+                          key={template.label}
+                          style={styles.templateChip}
+                          activeOpacity={0.88}
+                          onPress={() => setValue(template.value)}
+                        >
+                          <Text style={styles.templateChipText}>{template.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                )}
+
+                <View style={styles.charRow}>
+                  <Text style={styles.charInfo}>{activeQrValue.length}/1800 recommended</Text>
                 </View>
               </View>
 
@@ -322,7 +441,7 @@ export default function GenerateQRScreen({ navigation }) {
                   <CodePreviewCard
                     ref={previewRef}
                     type="qr"
-                    value={trimmedValue}
+                    value={activeQrValue}
                     qrForegroundColor={fgColor}
                     qrBackgroundColor={bgColor}
                     showMeta={false}
@@ -484,6 +603,29 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: palette.text,
   },
+  modeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  modeChip: {
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: '#EDF2F7',
+  },
+  modeChipActive: {
+    backgroundColor: '#DBEAFE',
+  },
+  modeChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  modeChipTextActive: {
+    color: palette.primary,
+  },
   textInput: {
     minHeight: 120,
     borderWidth: 1,
@@ -495,6 +637,30 @@ const styles = StyleSheet.create({
     color: palette.text,
     lineHeight: 22,
     backgroundColor: '#F8FAFC',
+  },
+  profileInput: {
+    minHeight: 46,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: palette.text,
+    backgroundColor: '#F8FAFC',
+    marginBottom: 10,
+  },
+  profileBioInput: {
+    minHeight: 74,
+  },
+  profileSocialInput: {
+    minHeight: 82,
+  },
+  profileHint: {
+    marginTop: 2,
+    fontSize: 12,
+    color: palette.textMuted,
+    fontWeight: '600',
   },
   charRow: {
     marginTop: 8,

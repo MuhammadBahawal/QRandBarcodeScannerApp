@@ -23,6 +23,7 @@ import PrivacyPolicyScreen from './src/screens/PrivacyPolicyScreen';
 import TermsConditionsScreen from './src/screens/TermsConditionsScreen';
 import PermissionsScreen from './src/screens/PermissionsScreen';
 import ContactSupportScreen from './src/screens/ContactSupportScreen';
+import ProfileDetailScreen from './src/screens/ProfileDetailScreen';
 import { palette } from './src/constants/appTheme';
 
 const Stack = createNativeStackNavigator();
@@ -32,10 +33,11 @@ const Tab = createBottomTabNavigator();
 async function hideAndroidNavigationBar() {
   if (Platform.OS !== 'android') return;
 
-  await Promise.allSettled([
-    NavigationBar.setVisibilityAsync('hidden'),
-    NavigationBar.setBehaviorAsync('overlay-swipe'),
-  ]);
+  try {
+    await NavigationBar.setVisibilityAsync('hidden');
+  } catch {
+    // Ignore unsupported runtime environments (for example Expo Go edge-to-edge limitations).
+  }
 }
 
 function MainTabsNavigator() {
@@ -120,7 +122,6 @@ export default function App() {
       <AppProvider>
         <NavigationContainer
           onReady={hideAndroidNavigationBar}
-          onStateChange={hideAndroidNavigationBar}
         >
           <StatusBar style="dark" translucent backgroundColor="transparent" />
           <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
@@ -163,6 +164,11 @@ export default function App() {
               name="ContactSupport"
               component={ContactSupportScreen}
               options={{ animation: 'none' }}
+            />
+            <Stack.Screen
+              name="ProfileDetail"
+              component={ProfileDetailScreen}
+              options={{ animation: 'slide_from_right' }}
             />
           </Stack.Navigator>
         </NavigationContainer>
