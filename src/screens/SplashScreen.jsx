@@ -83,7 +83,7 @@ export default function SplashScreen({ navigation }) {
         </View>
 
         <Text style={styles.title}>
-          Skanora{'\n'}
+          SkanOra{'\n'}
           <Text style={styles.highlight}>QR & Barcode Scanner</Text>
         </Text>
 

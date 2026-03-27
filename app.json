@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Skanora",
+    "name": "SkanOra",
     "slug": "skanora",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -32,13 +32,6 @@
         "android.permission.READ_MEDIA_AUDIO"
       ]
     },
-    "androidNavigationBar": {
-      "visible": "sticky-immersive"
-    },
-    "statusBar": {
-      "translucent": true,
-      "backgroundColor": "transparent"
-    },
     "web": {
       "favicon": "./assets/favicon.png"
     },
@@ -47,8 +40,8 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "Allow Skanora to access your photos.",
-          "savePhotosPermission": "Allow Skanora to save code images to your gallery.",
+          "photosPermission": "Allow SkanOra to access your photos.",
+          "savePhotosPermission": "Allow SkanOra to save code images to your gallery.",
           "isAccessMediaLocationEnabled": false
         }
       ]

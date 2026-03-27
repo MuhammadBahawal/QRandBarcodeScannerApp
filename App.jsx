@@ -4,8 +4,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { Platform } from 'react-native';
-import { NavigationBar } from 'expo-navigation-bar';
+import { AppState, Platform } from 'react-native';
+import * as NavigationBar from 'expo-navigation-bar';
 import { StatusBar } from 'expo-status-bar';
 
 import { AppProvider } from './src/context/AppContext';
@@ -27,6 +27,18 @@ import { palette } from './src/constants/appTheme';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+
+// ── Hide Android system navigation bar ──────────────────────────
+async function hideAndroidNavigationBar() {
+  if (Platform.OS !== 'android') return;
+  try {
+    await NavigationBar.setBackgroundColorAsync('#00000000');
+    await NavigationBar.setBehaviorAsync('overlay-swipe');
+    await NavigationBar.setVisibilityAsync('hidden');
+  } catch (e) {
+    // Silently ignore — native layer handles it as fallback
+  }
+}
 
 function MainTabsNavigator() {
   const insets = useSafeAreaInsets();
@@ -88,17 +100,30 @@ function MainTabsNavigator() {
 }
 
 export default function App() {
+  // Hide system navigation bar on mount and whenever app comes to foreground
   useEffect(() => {
-    if (Platform.OS === 'android' && NavigationBar && NavigationBar.setVisibilityAsync) {
-      NavigationBar.setVisibilityAsync('hidden');
-      NavigationBar.setBehaviorAsync('inset-swipe-immersive');
-    }
+    if (Platform.OS !== 'android') return undefined;
+
+    // Hide immediately on mount
+    hideAndroidNavigationBar();
+
+    // Re-hide every time the app comes back to the foreground
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        hideAndroidNavigationBar();
+      }
+    });
+
+    return () => sub.remove();
   }, []);
 
   return (
     <SafeAreaProvider>
       <AppProvider>
-        <NavigationContainer>
+        <NavigationContainer
+          onReady={hideAndroidNavigationBar}
+          onStateChange={hideAndroidNavigationBar}
+        >
           <StatusBar style="dark" translucent backgroundColor="transparent" />
           <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
             <Stack.Screen name="Splash" component={SplashScreen} />

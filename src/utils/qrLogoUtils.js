@@ -4,7 +4,7 @@
  */
 
 import { Platform } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 
 /**
@@ -38,9 +38,19 @@ export async function validateImageFile(uri) {
       return false;
     }
 
-    // Check if it's likely an image based on file size (>1KB, <50MB)
+    if (fileInfo.isDirectory) {
+      return false;
+    }
+
+    // Some image URIs (particularly older Android content URIs) may not return size immediately.
+    // Accept if size is missing but file exists to avoid false invalidation.
+    if (fileInfo.size == null || fileInfo.size === 0) {
+      return true;
+    }
+
+    // Check if it's likely an image based on file size (<50MB). Small images are allowed.
     const fileSizeInMb = fileInfo.size / (1024 * 1024);
-    return fileSizeInMb > 0.01 && fileSizeInMb < 50;
+    return fileSizeInMb < 50;
   } catch (error) {
     console.error('Error validating image file:', error);
     return false;
