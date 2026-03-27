@@ -28,16 +28,14 @@ import { palette } from './src/constants/appTheme';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// ── Hide Android system navigation bar ──────────────────────────
+// Hide Android system navigation bar.
 async function hideAndroidNavigationBar() {
   if (Platform.OS !== 'android') return;
-  try {
-    await NavigationBar.setBackgroundColorAsync('#00000000');
-    await NavigationBar.setBehaviorAsync('overlay-swipe');
-    await NavigationBar.setVisibilityAsync('hidden');
-  } catch (e) {
-    // Silently ignore — native layer handles it as fallback
-  }
+
+  await Promise.allSettled([
+    NavigationBar.setVisibilityAsync('hidden'),
+    NavigationBar.setBehaviorAsync('overlay-swipe'),
+  ]);
 }
 
 function MainTabsNavigator() {
@@ -100,14 +98,14 @@ function MainTabsNavigator() {
 }
 
 export default function App() {
-  // Hide system navigation bar on mount and whenever app comes to foreground
+  // Hide system navigation bar on mount and whenever app comes to foreground.
   useEffect(() => {
     if (Platform.OS !== 'android') return undefined;
 
-    // Hide immediately on mount
+    // Hide immediately on mount.
     hideAndroidNavigationBar();
 
-    // Re-hide every time the app comes back to the foreground
+    // Re-hide every time the app comes back to the foreground.
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         hideAndroidNavigationBar();

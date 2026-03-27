@@ -38,6 +38,13 @@
     "plugins": [
       "expo-font",
       [
+        "expo-navigation-bar",
+        {
+          "visibility": "hidden",
+          "behavior": "overlay-swipe"
+        }
+      ],
+      [
         "expo-media-library",
         {
           "photosPermission": "Allow SkanOra to access your photos.",
