@@ -18,6 +18,10 @@ import {
 import { palette } from '../constants/appTheme';
 import useCodeExportActions from '../hooks/useCodeExportActions';
 import { formatHistoryDate } from '../utils/appUtils';
+import {
+  formatProfileDetailsForClipboard,
+  parseProfileQrValue,
+} from '../utils/profileQrUtils';
 import ActionButtons from './ActionButtons';
 import CodePreviewCard from './CodePreviewCard';
 
@@ -29,6 +33,9 @@ export default function HistoryPreviewModal({ visible, item, onClose }) {
 
   const codeType = item?.type || item?.codeFamily || 'qr';
   const isBarcode = codeType === 'barcode';
+  const rawValue = String(item?.value || item?.content || '');
+  const parsedDetail = !isBarcode ? parseProfileQrValue(rawValue) : null;
+  const detailText = parsedDetail ? formatProfileDetailsForClipboard(parsedDetail) : rawValue;
   const safeFormat = useMemo(
     () => normalizeBarcodeFormat(item?.format),
     [item?.format]
@@ -102,14 +109,16 @@ export default function HistoryPreviewModal({ visible, item, onClose }) {
             <CodePreviewCard
               ref={previewRef}
               type={isBarcode ? 'barcode' : 'qr'}
-              value={item.value || item.content}
+              value={rawValue}
               barcodeFormat={safeFormat}
               showMeta={false}
             />
 
             <View style={styles.valueCard}>
-              <Text style={styles.valueLabel}>Original content</Text>
-              <Text style={styles.valueText}>{item.value || item.content}</Text>
+              <Text style={styles.valueLabel}>
+                {parsedDetail ? 'Shared details' : 'Original content'}
+              </Text>
+              <Text style={styles.valueText}>{detailText}</Text>
             </View>
 
             <ActionButtons

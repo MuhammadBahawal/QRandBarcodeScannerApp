@@ -1,7 +1,9 @@
 import { Feather } from '@expo/vector-icons';
-import React, { useMemo } from 'react';
+import * as Clipboard from 'expo-clipboard';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  Image,
   Linking,
   ScrollView,
   StyleSheet,
@@ -14,7 +16,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import ScreenHeader from '../components/ScreenHeader';
 import { palette, shadows } from '../constants/appTheme';
 import { normalizeUrl } from '../utils/appUtils';
-import { createProfileActionLinks } from '../utils/profileQrUtils';
+import {
+  createProfileActionLinks,
+  formatProfileDetailsForClipboard,
+  resolveProfileImageUri,
+} from '../utils/profileQrUtils';
 
 function DetailRow({ label, value, iconName, onPress }) {
   if (!value) {
@@ -45,8 +51,13 @@ function DetailRow({ label, value, iconName, onPress }) {
 
 export default function ProfileDetailScreen({ navigation, route }) {
   const profile = route?.params?.profile || null;
+  const [isProfileImageFailed, setIsProfileImageFailed] = useState(false);
   const profileActions = useMemo(
     () => createProfileActionLinks(profile),
+    [profile]
+  );
+  const profileImageUri = useMemo(
+    () => resolveProfileImageUri(profile),
     [profile]
   );
   const socialRows = useMemo(() => {
@@ -56,6 +67,23 @@ export default function ProfileDetailScreen({ navigation, route }) {
       actionLink: normalizeUrl(item),
     }));
   }, [profile]);
+  const extraRows = useMemo(() => {
+    const details = Array.isArray(profile?.extraDetails) ? profile.extraDetails : [];
+    return details
+      .map((item) => ({
+        label: String(item?.label || '').trim(),
+        value: String(item?.value || '').trim(),
+      }))
+      .filter((item) => item.label && item.value);
+  }, [profile]);
+  const detailsClipboardText = useMemo(
+    () => formatProfileDetailsForClipboard(profile),
+    [profile]
+  );
+
+  useEffect(() => {
+    setIsProfileImageFailed(false);
+  }, [profileImageUri]);
 
   const openLink = async (url, errorMessage) => {
     if (!url) {
@@ -69,15 +97,29 @@ export default function ProfileDetailScreen({ navigation, route }) {
     }
   };
 
+  const handleCopyDetails = async () => {
+    if (!detailsClipboardText) {
+      Alert.alert('Nothing to copy', 'No detail information is available to copy.');
+      return;
+    }
+
+    try {
+      await Clipboard.setStringAsync(detailsClipboardText);
+      Alert.alert('Copied', 'Details copied to clipboard.');
+    } catch {
+      Alert.alert('Copy failed', 'Unable to copy details right now.');
+    }
+  };
+
   if (!profile) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <View style={styles.container}>
-          <ScreenHeader title="Profile" onBack={() => navigation.goBack()} compactTop />
+          <ScreenHeader title="Person Details" onBack={() => navigation.goBack()} compactTop />
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>Profile data unavailable</Text>
+            <Text style={styles.emptyTitle}>Person details unavailable</Text>
             <Text style={styles.emptyText}>
-              The scanned QR does not contain valid profile information.
+              The scanned QR does not contain valid person detail information.
             </Text>
           </View>
         </View>
@@ -88,17 +130,39 @@ export default function ProfileDetailScreen({ navigation, route }) {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <View style={styles.container}>
-        <ScreenHeader title="Profile" onBack={() => navigation.goBack()} compactTop />
+        <ScreenHeader title="Person Details" onBack={() => navigation.goBack()} compactTop />
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollBody}>
           <View style={styles.headerCard}>
-            <Text style={styles.profileName}>{profile.name || 'Shared Profile'}</Text>
+            <View style={styles.avatarOuter}>
+              {profileImageUri && !isProfileImageFailed ? (
+                <Image
+                  source={{ uri: profileImageUri }}
+                  style={styles.avatarImage}
+                  onError={() => setIsProfileImageFailed(true)}
+                />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Feather name="user" size={26} color="#64748B" />
+                </View>
+              )}
+            </View>
+            <Text style={styles.profileName}>{profile.name || 'Shared Person'}</Text>
             {profile.bio ? <Text style={styles.profileBio}>{profile.bio}</Text> : null}
           </View>
 
           <View style={styles.contentCard}>
+            <TouchableOpacity
+              style={styles.copyDetailsButton}
+              onPress={handleCopyDetails}
+              activeOpacity={0.88}
+            >
+              <Feather name="copy" size={15} color={palette.primary} />
+              <Text style={styles.copyDetailsButtonText}>Copy Details</Text>
+            </TouchableOpacity>
+
             <DetailRow
-              label="Phone"
+              label="Phone Number"
               value={profile.phone}
               onPress={
                 profileActions.phone
@@ -137,6 +201,9 @@ export default function ProfileDetailScreen({ navigation, route }) {
               }
               iconName="map-pin"
             />
+            {extraRows.map((item, index) => (
+              <DetailRow key={`${item.label}-${index}`} label={item.label} value={item.value} />
+            ))}
 
             {socialRows.length ? (
               <View style={styles.socialBlock}>
@@ -190,12 +257,34 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#FFFFFF',
     padding: 16,
+    alignItems: 'center',
     ...shadows.card,
+  },
+  avatarOuter: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    overflow: 'hidden',
+    backgroundColor: '#EDF2F7',
+    borderWidth: 1,
+    borderColor: '#D8E1F0',
+    marginBottom: 12,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarPlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   profileName: {
     fontSize: 22,
     fontWeight: '800',
     color: palette.text,
+    textAlign: 'center',
   },
   profileBio: {
     marginTop: 8,
@@ -203,6 +292,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: palette.textMuted,
     fontWeight: '500',
+    textAlign: 'center',
   },
   contentCard: {
     marginTop: 14,
@@ -210,6 +300,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     padding: 16,
     ...shadows.card,
+  },
+  copyDetailsButton: {
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#DCE7F7',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFF',
+  },
+  copyDetailsButtonText: {
+    marginLeft: 6,
+    fontSize: 13,
+    fontWeight: '700',
+    color: palette.primary,
   },
   rowStatic: {
     marginBottom: 14,

@@ -18,7 +18,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { palette, shadows } from '../constants/appTheme';
 import { useAppData } from '../context/AppContext';
 import { normalizeUrl, truncateText } from '../utils/appUtils';
-import { parseProfileQrValue } from '../utils/profileQrUtils';
+import { isProfileQrValue, parseProfileQrValue } from '../utils/profileQrUtils';
 
 const modeConfig = {
   qr: {
@@ -88,9 +88,20 @@ export default function CodeScannerScreen({ navigation, mode }) {
       );
     }
 
-    const profileData =
-      config.codeFamily === 'qr' ? parseProfileQrValue(value) : null;
+    const isPersonDetailQr =
+      config.codeFamily === 'qr' && isProfileQrValue(value);
+    const profileData = isPersonDetailQr ? parseProfileQrValue(value) : null;
     const normalizedUrl = normalizeUrl(value);
+
+    if (isPersonDetailQr && !profileData) {
+      Alert.alert(
+        'Invalid person detail QR',
+        'This detail-sharing QR payload is incomplete or malformed.'
+      );
+      setIsScanLocked(false);
+      return;
+    }
+
     const parsedResult = {
       value,
       type: String(type || 'unknown').toUpperCase(),

@@ -92,7 +92,13 @@ export default function useCodeExportActions() {
   }, []);
 
   const ensureMediaSavePermission = useCallback(async () => {
-    const currentPermission = await getMediaLibraryPermissionState();
+    let currentPermission;
+    try {
+      currentPermission = await getMediaLibraryPermissionState();
+    } catch {
+      showPermissionEnvironmentFeedback();
+      return false;
+    }
 
     if (currentPermission.granted) {
       return true;
@@ -120,7 +126,13 @@ export default function useCodeExportActions() {
       return false;
     }
 
-    const requestedPermission = await requestMediaLibraryPermission();
+    let requestedPermission;
+    try {
+      requestedPermission = await requestMediaLibraryPermission();
+    } catch {
+      showPermissionEnvironmentFeedback();
+      return false;
+    }
 
     if (requestedPermission.granted) {
       return true;

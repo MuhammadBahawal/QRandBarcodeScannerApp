@@ -2,6 +2,8 @@ import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 import { Share } from 'react-native';
 
+const MEDIA_LIBRARY_GRANULAR_PERMISSIONS = ['photo'];
+
 export async function captureCodeImage(previewRef) {
   const target = previewRef?.current;
 
@@ -47,12 +49,18 @@ function normalizePermissionResponse(permission) {
 }
 
 export async function getMediaLibraryPermissionState() {
-  const currentPermission = await MediaLibrary.getPermissionsAsync();
+  const currentPermission = await MediaLibrary.getPermissionsAsync(
+    false,
+    MEDIA_LIBRARY_GRANULAR_PERMISSIONS
+  );
   return normalizePermissionResponse(currentPermission);
 }
 
 export async function requestMediaLibraryPermission() {
-  const requestedPermission = await MediaLibrary.requestPermissionsAsync();
+  const requestedPermission = await MediaLibrary.requestPermissionsAsync(
+    false,
+    MEDIA_LIBRARY_GRANULAR_PERMISSIONS
+  );
   return normalizePermissionResponse(requestedPermission);
 }
 

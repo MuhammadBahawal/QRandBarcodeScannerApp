@@ -16,6 +16,10 @@ import HistoryPreviewModal from '../components/HistoryPreviewModal';
 import { palette, shadows } from '../constants/appTheme';
 import { useAppData } from '../context/AppContext';
 import { formatHistoryDate, truncateText } from '../utils/appUtils';
+import {
+  formatProfileDetailsForClipboard,
+  parseProfileQrValue,
+} from '../utils/profileQrUtils';
 
 const filters = [
   { key: 'all', label: 'All' },
@@ -90,6 +94,11 @@ export default function HistoryScreen({ navigation }) {
     const isQr = (item.type || item.codeFamily) === 'qr';
     const iconName = isQr ? 'qrcode' : 'barcode';
     const badgeText = isQr ? 'QR' : 'BARCODE';
+    const rawValue = String(item.value || item.content || '');
+    const parsedDetail = isQr ? parseProfileQrValue(rawValue) : null;
+    const displayValue = parsedDetail
+      ? formatProfileDetailsForClipboard(parsedDetail).replace(/\n/g, ' | ')
+      : rawValue;
 
     return (
       <View style={styles.itemCard}>
@@ -112,7 +121,7 @@ export default function HistoryScreen({ navigation }) {
                     {item.source.toUpperCase()} . {item.format}
                   </Text>
                 </View>
-                <Text style={styles.valueText}>{truncateText(item.value, 100)}</Text>
+                <Text style={styles.valueText}>{truncateText(displayValue, 100)}</Text>
                 <Text style={styles.timeText}>{formatHistoryDate(item.createdAt)}</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
@@ -124,8 +133,11 @@ export default function HistoryScreen({ navigation }) {
           <TouchableOpacity
             style={styles.smallAction}
             onPress={async () => {
-              await Clipboard.setStringAsync(item.value);
-              Alert.alert('Copied', 'Value copied to clipboard.');
+              const copiedValue = parsedDetail
+                ? formatProfileDetailsForClipboard(parsedDetail)
+                : rawValue;
+              await Clipboard.setStringAsync(copiedValue);
+              Alert.alert('Copied', parsedDetail ? 'Details copied to clipboard.' : 'Value copied to clipboard.');
             }}
             activeOpacity={0.86}
           >

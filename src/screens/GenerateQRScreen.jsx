@@ -3,6 +3,7 @@ import * as Clipboard from 'expo-clipboard';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  Image,
   InteractionManager,
   Keyboard,
   KeyboardAvoidingView,
@@ -23,7 +24,12 @@ import { palette, shadows } from '../constants/appTheme';
 import { useAppData } from '../context/AppContext';
 import useCodeExportActions from '../hooks/useCodeExportActions';
 import { analyzePlatformUrl, getPlatformLogoSpec } from '../utils/platformDetection';
-import { buildProfileQrValue } from '../utils/profileQrUtils';
+import {
+  buildProfileQrValue,
+  captureProfileImageFromCamera,
+  pickProfileImageFromGallery,
+  resolveProfileImageUri,
+} from '../utils/profileQrUtils';
 import { createLogoConfig, pickImageFromGallery, validateImageFile } from '../utils/qrLogoUtils';
 
 const QR_COLOR_OPTIONS = ['#111827', '#4F46E5', '#0F766E', '#B91C1C', '#334155'];
@@ -48,6 +54,8 @@ const PROFILE_EMPTY_STATE = {
   bio: '',
   website: '',
   socialLinks: '',
+  imageUri: '',
+  imageDataUri: '',
 };
 
 export default function GenerateQRScreen({ navigation }) {
@@ -57,6 +65,7 @@ export default function GenerateQRScreen({ navigation }) {
   const [fgColor, setFgColor] = useState(QR_COLOR_OPTIONS[0]);
   const [bgColor, setBgColor] = useState(BG_COLOR_OPTIONS[0]);
   const [renderError, setRenderError] = useState('');
+  const [isProfileImageFailed, setIsProfileImageFailed] = useState(false);
   const [isPreviewReady, setIsPreviewReady] = useState(false);
   const [customLogo, setCustomLogo] = useState(null);
   const [autoLogo, setAutoLogo] = useState(null);
@@ -71,6 +80,10 @@ export default function GenerateQRScreen({ navigation }) {
     () => buildProfileQrValue(profileFields),
     [profileFields]
   );
+  const profileImageUri = useMemo(
+    () => resolveProfileImageUri(profileFields),
+    [profileFields]
+  );
   const activeQrValue = isProfileMode ? profileQrValue : trimmedValue;
   const canGenerate = activeQrValue.length > 0 && activeQrValue.length <= 1800;
 
@@ -82,11 +95,14 @@ export default function GenerateQRScreen({ navigation }) {
   const statusMessage = useMemo(() => {
     if (!activeQrValue) {
       return isProfileMode
-        ? 'Fill at least one profile field to generate a Profile QR.'
+        ? 'Fill at least one detail field to generate a Detail QR.'
         : 'Enter text or URL to generate a QR code.';
     }
 
     if (activeQrValue.length > 1800) {
+      if (isProfileMode && profileImageUri) {
+        return 'Detail content is too large for QR. Use a smaller image or fewer fields.';
+      }
       return 'QR value is too long. Keep it under 1800 characters.';
     }
 
@@ -95,7 +111,7 @@ export default function GenerateQRScreen({ navigation }) {
     }
 
     return 'Your QR code is ready.';
-  }, [activeQrValue, isProfileMode, renderError]);
+  }, [activeQrValue, isProfileMode, profileImageUri, renderError]);
 
   useEffect(() => {
     if (isProfileMode || !trimmedValue) {
@@ -150,6 +166,60 @@ export default function GenerateQRScreen({ navigation }) {
       ...previous,
       [field]: nextValue,
     }));
+  };
+
+  const applyProfileImageResult = (result) => {
+    if (!result) {
+      Alert.alert('Error', 'Unable to process detail image right now.');
+      return;
+    }
+
+    if (result.error === 'picker_canceled') {
+      return;
+    }
+
+    if (result.error === 'permission_denied') {
+      Alert.alert(
+        'Permission Required',
+        'Allow photo library access to select an image.'
+      );
+      return;
+    }
+
+    if (result.error === 'camera_permission_denied') {
+      Alert.alert(
+        'Permission Required',
+        'Allow camera access to capture an image.'
+      );
+      return;
+    }
+
+    if (result.error === 'invalid_asset') {
+      Alert.alert('Invalid Image', 'Please choose a valid image.');
+      return;
+    }
+
+    if (result.error === 'picker_failed' || result.error === 'camera_failed') {
+      Alert.alert('Error', 'Could not load image. Please try again.');
+      return;
+    }
+
+    setProfileFields((previous) => ({
+      ...previous,
+      imageUri: result.imageUri || '',
+      imageDataUri: result.imageDataUri || '',
+    }));
+    setIsProfileImageFailed(false);
+  };
+
+  const handlePickProfileImage = async () => {
+    const result = await pickProfileImageFromGallery();
+    applyProfileImageResult(result);
+  };
+
+  const handleCaptureProfileImage = async () => {
+    const result = await captureProfileImageFromCamera();
+    applyProfileImageResult(result);
   };
 
   const handleAddLogo = async () => {
@@ -258,6 +328,7 @@ export default function GenerateQRScreen({ navigation }) {
     Keyboard.dismiss();
     setValue('');
     setProfileFields(PROFILE_EMPTY_STATE);
+    setIsProfileImageFailed(false);
     setRenderError('');
     setCustomLogo(null);
     setAutoLogo(null);
@@ -297,7 +368,7 @@ export default function GenerateQRScreen({ navigation }) {
           >
               <View style={styles.inputCard}>
                 <View style={styles.inputHeader}>
-                  <Text style={styles.sectionTitle}>{isProfileMode ? 'Profile' : 'Value'}</Text>
+                  <Text style={styles.sectionTitle}>{isProfileMode ? 'Details' : 'Value'}</Text>
                   <TouchableOpacity
                     style={styles.dismissKeyboardChip}
                     activeOpacity={0.85}
@@ -324,13 +395,47 @@ export default function GenerateQRScreen({ navigation }) {
                     activeOpacity={0.88}
                   >
                     <Text style={[styles.modeChipText, isProfileMode && styles.modeChipTextActive]}>
-                      Profile
+                      Details
                     </Text>
                   </TouchableOpacity>
                 </View>
 
                 {isProfileMode ? (
                   <View>
+                    <View style={styles.profileImageSection}>
+                      <View style={styles.profileAvatarWrap}>
+                        {profileImageUri && !isProfileImageFailed ? (
+                          <Image
+                            source={{ uri: profileImageUri }}
+                            style={styles.profileAvatarImage}
+                            onError={() => setIsProfileImageFailed(true)}
+                          />
+                        ) : (
+                          <View style={styles.profileAvatarPlaceholder}>
+                            <Feather name="user" size={22} color="#64748B" />
+                          </View>
+                        )}
+                      </View>
+                      <View style={styles.profileImageActions}>
+                        <TouchableOpacity
+                          style={styles.profileImageButton}
+                          onPress={handlePickProfileImage}
+                          activeOpacity={0.88}
+                        >
+                          <Feather name="image" size={14} color={palette.primary} />
+                          <Text style={styles.profileImageButtonText}>Gallery</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.profileImageButton}
+                          onPress={handleCaptureProfileImage}
+                          activeOpacity={0.88}
+                        >
+                          <Feather name="camera" size={14} color={palette.primary} />
+                          <Text style={styles.profileImageButtonText}>Camera</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
                     <TextInput
                       style={styles.profileInput}
                       placeholder="Full name"
@@ -437,6 +542,31 @@ export default function GenerateQRScreen({ navigation }) {
 
               <View style={styles.previewCard}>
                 <Text style={styles.sectionTitle}>Preview</Text>
+                {isProfileMode ? (
+                  <View style={styles.profilePreviewCard}>
+                    <View style={styles.profilePreviewAvatarWrap}>
+                      {profileImageUri && !isProfileImageFailed ? (
+                        <Image
+                          source={{ uri: profileImageUri }}
+                          style={styles.profilePreviewAvatar}
+                          onError={() => setIsProfileImageFailed(true)}
+                        />
+                      ) : (
+                        <View style={styles.profilePreviewPlaceholder}>
+                          <Feather name="user" size={20} color="#64748B" />
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.profilePreviewTextWrap}>
+                      <Text style={styles.profilePreviewName}>
+                        {profileFields.name || 'Detail QR'}
+                      </Text>
+                      <Text style={styles.profilePreviewSub}>
+                        {profileFields.email || profileFields.phone || 'No contact info added yet'}
+                      </Text>
+                    </View>
+                  </View>
+                ) : null}
                 {isPreviewReady ? (
                   <CodePreviewCard
                     ref={previewRef}
@@ -626,6 +756,55 @@ const styles = StyleSheet.create({
   modeChipTextActive: {
     color: palette.primary,
   },
+  profileImageSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  profileAvatarWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    overflow: 'hidden',
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#D8E1F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileAvatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  profileAvatarPlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileImageActions: {
+    marginLeft: 12,
+    flex: 1,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  profileImageButton: {
+    flex: 1,
+    height: 38,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#D9E2F2',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
+  },
+  profileImageButtonText: {
+    marginLeft: 6,
+    fontSize: 12,
+    color: palette.primary,
+    fontWeight: '700',
+  },
   textInput: {
     minHeight: 120,
     borderWidth: 1,
@@ -695,6 +874,49 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     padding: 16,
     ...shadows.card,
+  },
+  profilePreviewCard: {
+    marginTop: 10,
+    marginBottom: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  profilePreviewAvatarWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: '#EEF2F7',
+    marginRight: 10,
+  },
+  profilePreviewAvatar: {
+    width: '100%',
+    height: '100%',
+  },
+  profilePreviewPlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profilePreviewTextWrap: {
+    flex: 1,
+  },
+  profilePreviewName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: palette.text,
+  },
+  profilePreviewSub: {
+    marginTop: 3,
+    fontSize: 12,
+    color: palette.textMuted,
+    fontWeight: '500',
   },
   previewBootWrap: {
     minHeight: 210,
