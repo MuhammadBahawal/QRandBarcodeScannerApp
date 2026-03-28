@@ -1,4 +1,5 @@
-import { MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import Barcode from '@kichiyaki/react-native-barcode-generator';
 import React, {
   forwardRef,

@@ -7,8 +7,7 @@ import {
   Easing,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 export default function SplashScreen({ navigation }) {
   const progressAnim = useRef(new Animated.Value(0)).current;
 
